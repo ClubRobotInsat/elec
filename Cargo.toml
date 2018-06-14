@@ -2,6 +2,7 @@
 authors = ["Paul Florence <florencepaul@hotmail.fr"]
 name = "nucleo_rust"
 version = "0.3.1"
+
 [dependencies]
 embedded-hal = "0.2.1"
 nb = "0.1.1"
@@ -10,7 +11,7 @@ nb = "0.1.1"
 version = "0.5.0"
 
 [dependencies.stm32f446-hal]
-path = "/home/paul/repos/robot/rust/stm32f446-hal"
+git = "https://github.com/gbip/stm32f446-hal"
 
 [dependencies.cortex-m-rt]
 version = "0.5.0"
@@ -26,4 +27,4 @@ debug = true
 lto = true
 
 [dependencies.librobot]
-path = "/home/paul/repos/robot/rust/librobot"
+git = "https://github.com/ClubRobotInsat/librobot"
