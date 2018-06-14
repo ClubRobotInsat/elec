@@ -24,3 +24,6 @@ version = "0.2.0"
 codegen-units = 1
 debug = true
 lto = true
+
+[dependencies.librobot]
+path = "/home/paul/repos/robot/rust/librobot"
