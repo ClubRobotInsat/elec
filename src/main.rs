@@ -14,26 +14,29 @@ extern crate nb;
 extern crate drs_0x01;
 extern crate embedded_hal;
 extern crate panic_semihosting;
+#[macro_use]
 extern crate stm32f446_hal;
 
-use drs_0x01::*;
+use drs_0x01::prelude::*;
 
 mod communicator;
+mod robot;
+mod servo;
+
+use robot::{init_peripherals, Robot};
 
 use cortex_m::asm;
 use embedded_hal::serial::{Read, Write};
 use rt::ExceptionFrame;
 use stm32f446_hal::prelude::*;
-use stm32f446_hal::serial::Serial;
 use stm32f446_hal::stm32f446;
-use stm32f446_hal::stm32f446::USART3;
-
-use stm32f446_hal::rcc::AHB1;
 
 use librobot::arrayvec::ArrayVec;
 use librobot::trame_reader::TrameReader;
 use librobot::Trame;
-//use communicator::Com;
+
+use drs_0x01::addr::WritableRamAddr;
+use servo::ServoManager;
 
 entry!(main);
 
@@ -48,70 +51,78 @@ fn handle_trame(trame: Trame) -> Option<Trame> {
     }
 }
 
-fn main() -> ! {
-    let p = stm32f446::Peripherals::take().unwrap();
+/// Envoie 3 messages d'initialisation aux servomoteurs :
+/// * Reboot
+/// * Toujours renvoyer des ack (pour le debug)
+/// * Activer le couple
+fn init_servo(robot: &mut Robot) {
+    let servos = ServoManager::new();
 
-    let mut flash = p.FLASH.constrain();
-    let mut rcc = p.RCC.constrain();
-    let mut pwr = p.PWR;
-    let mut gpioc = p.GPIOC.split(&mut rcc.ahb1);
+    let m2 = servos[0xFE].reboot();
 
-    // Configuration des horloges par défaut.
-    let clocks = rcc.cfgr.max_speed(&mut flash.acr, &mut pwr); /*
-        .cfgr
-        .pclk1(45.mhz())
-        .pclk2(90.mhz())
-        .sysclk(128.mhz())
-        .freeze(&mut flash.acr); */
+    for b in m2 {
+        block!(robot.servo_tx.write(b)).unwrap();
+    }
 
-    let tx = gpioc.pc10.into_af7(
-        &mut gpioc.moder,
-        &mut gpioc.afrh,
-        &mut gpioc.otyper,
-        &mut gpioc.pupdr,
-    );
+    for _ in 0..5 {
+        robot.delay.delay_ms(70 as u32);
+    }
 
-    let rx = gpioc.pc11.into_af7(
-        &mut gpioc.moder,
-        &mut gpioc.afrh,
-        &mut gpioc.otyper,
-        &mut gpioc.pupdr,
-    );
+    let m2 = servos[0xFE].ram_write(WritableRamAddr::AckPolicy(2));
 
-    // Initialisation du périphérique USART
-    //
-    let serial = Serial::usart3(p.USART3, (tx, rx), 115_200.bps(), clocks, &mut rcc.apb1);
+    for b in m2 {
+        block!(robot.servo_tx.write(b)).unwrap();
+    }
 
-    let (mut tx, mut rx) = serial.split();
-
-    let m1 = MessageBuilder::new().id(0xFE).reboot().build();
-    let m2 = MessageBuilder::new().id(0xFE).stat().build();
+    let m1 = servos[0xFE].enable_torque();
 
     for b in m1 {
-        block!(tx.write(b)).unwrap();
+        block!(robot.servo_tx.write(b)).unwrap();
     }
+}
+
+fn main() -> ! {
+    let mut robot = init_peripherals(
+        stm32f446::Peripherals::take().unwrap(),
+        cortex_m::Peripherals::take().unwrap(),
+    );
+
+    init_servo(&mut robot);
+
+    let _reader = TrameReader::new();
 
     loop {
         /*
-        if let Ok(byte) = rx.read() {
+        let mess = servos[0x05].stat();
+        for b in mess {
+            block!(robot.servo_tx.write(b)).unwrap();
+        }
+
+        robot.delay.delay_ms(70 as u16);
+*/
+        /*
+        if let Ok(byte) = pc_rx.read() {
             reader.step(byte);
         }
         if let Some(trame) = reader.pop_trame() {
             if let Some(sent) = handle_trame(trame) {
                 let (arr, size): ([u8; 15], usize) = sent.into();
                 for b in arr[0..size].iter() {
-                    block!(tx.write(*b)).unwrap();
+                    block!(pc_tx.write(*b)).unwrap();
                 }
             }
-        }
-        */
+        }*/
     }
 }
+
+interrupt!(USART6, usart_pc);
+
+fn usart_pc() {}
 
 exception!(HardFault, hard_fault);
 
 fn hard_fault(ef: &ExceptionFrame) -> ! {
-    panic!("{:#?}", ef);
+    panic!("Hardfault... : {:#?}", ef);
 }
 
 exception!(*, default_handler);
