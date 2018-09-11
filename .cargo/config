@@ -37,8 +37,8 @@ rustflags = [
 [target.thumbv7em-none-eabihf]
 runner = 'arm-none-eabi-gdb'
 rustflags = [
-  "-C", "link-arg=-Wl,-Tlink.x",
-  "-C", "link-arg=-nostartfiles",
+#  "-C", "link-arg=-Wl,-Tlink.x",
+#  "-C", "link-arg=-nostartfiles",
 
   # uncomment to use rustc LLD to link programs (a)
   # "-C", "link-arg=-Tlink.x",
