@@ -8,6 +8,7 @@ use stm32f446_hal::rcc::AHB1;
 use stm32f446_hal::serial::Serial;
 use stm32f446_hal::serial::{Rx, Tx};
 
+use cortex_m::peripheral::NVIC;
 use cortex_m::Peripherals as CortexPeripherals;
 
 /// Contiens toutes les structures représentant l'interface avec le µ-controlleur
@@ -17,6 +18,7 @@ pub struct Robot {
     pub pc_rx: Rx<USART6>,
     pub pc_tx: Tx<USART6>,
     pub delay: Delay,
+    pub nvic: NVIC,
 }
 
 /// Crée un robot en initialisant tous les périphériques
@@ -83,5 +85,6 @@ pub fn init_peripherals(p: stm32f446::Peripherals, k: CortexPeripherals) -> Robo
         pc_tx: pc_tx,
         pc_rx: pc_rx,
         delay: delay,
+        nvic: nvic,
     }
 }

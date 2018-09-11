@@ -23,6 +23,8 @@ mod communicator;
 mod robot;
 mod servo;
 
+use core::cell::RefCell;
+
 use robot::{init_peripherals, Robot};
 
 use cortex_m::asm;
@@ -89,9 +91,15 @@ fn main() -> ! {
 
     init_servo(&mut robot);
 
-    let _reader = TrameReader::new();
+    let mut reader = TrameReader::new();
 
     loop {
+        let b = block!(robot.pc_rx.read()).unwrap();
+        reader.step(b);
+        if let Some(trame) = reader.pop_trame() {
+            asm::bkpt();
+        }
+
         /*
         let mess = servos[0x05].stat();
         for b in mess {
